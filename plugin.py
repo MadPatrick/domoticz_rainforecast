@@ -152,9 +152,9 @@ class BasePlugin:
 
         # Devices aanmaken indien nog niet aanwezig
         if UNIT_RAIN not in Devices:
-            Domoticz.Device(Name="RegenData", Unit=UNIT_RAIN,
+            Domoticz.Device(Name="Neerslag", Unit=UNIT_RAIN,
                             TypeName="Rain", Used=1).Create()
-            Domoticz.Log("Device 'RegenData' aangemaakt")
+            Domoticz.Log("Device 'Neerslag' aangemaakt")
 
         if UNIT_TEXT not in Devices:
             Domoticz.Device(Name="Buienradar", Unit=UNIT_TEXT,
