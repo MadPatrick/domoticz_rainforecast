@@ -1,2 +1,5 @@
 # domoticz_rainforecast
-Rainf forecast based on Buienradar
+Rain forecast based on Buienradar
+
+install by
+git clone https://github.com/MadPatrick/domoticz_rainforecast Rain_Forecast
