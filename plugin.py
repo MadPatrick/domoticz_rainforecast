@@ -30,7 +30,6 @@ import threading
 # Constanten
 # ---------------------------------------------------------------------------
 BUIENRADAR_URL = "https://gpsgadget.buienradar.nl/data/raintext?lat={lat}&lon={lon}"
-
 UNIT_RAIN = 1   # Rain-device (RegenData)
 UNIT_TEXT = 2   # Tekst-device (Buienradar)
 
@@ -44,10 +43,8 @@ def raw_to_mm(raw: float) -> float:
         return 0.0
     return 10 ** ((raw - 109) / 32)
 
-
 def fmt(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}"
-
 
 def build_status(prefix: str, mm_now: float, mm_max: float | None):
     html = f"{prefix} <font color='yellow'>{fmt(mm_now)} mm</font>"
@@ -56,7 +53,6 @@ def build_status(prefix: str, mm_now: float, mm_max: float | None):
         html += f" tot <font color='yellow'>{fmt(mm_max)} mm</font>"
         text += f" tot {fmt(mm_max)} mm"
     return html, text
-
 
 def parse_buienradar(data: str):
     counter       = 0
@@ -102,7 +98,6 @@ def parse_buienradar(data: str):
         "first_rain_at": first_rain_at,
     }
 
-
 def build_status_text(p: dict):
     """Bouwt de HTML- en logtekst op uit de geparseerde data."""
     if p["max_now_raw"] > 0:
@@ -120,7 +115,6 @@ def build_status_text(p: dict):
         return html, text
 
     return "Voorlopig droog", "Voorlopig droog"
-
 
 # ---------------------------------------------------------------------------
 # Plugin-klasse
@@ -207,7 +201,7 @@ class BasePlugin:
             Domoticz.Error("Lege response ontvangen van Buienradar")
             return
 
-        # Sanity-check: minstens één "getal|tijd"-regel verwacht
+        # Sanity-check: minstens Ã©Ã©n "getal|tijd"-regel verwacht
         import re
         if not re.search(r"\d+|\d+:\d+", data):
             Domoticz.Error("Onverwacht formaat in Buienradar response")
@@ -243,7 +237,6 @@ class BasePlugin:
         if text_dev.sValue != status_html:
             Domoticz.Log(status_log)
             text_dev.Update(nValue=0, sValue=status_html)
-
 
 # ---------------------------------------------------------------------------
 # Domoticz plugin-API hooks  (module-niveau functies vereist)
