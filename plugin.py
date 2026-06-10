@@ -4,7 +4,7 @@
         <h2>Buienradar</h2>
         <p>Version 1.0.0</p>
         Haalt de komende neerslagverwachting op via Buienradar en werkt
-        twee devices bij: een Rain-sensor en een tekst-device.
+        twee devices bij: een Regen-sensor en een Tekst-device.
     </description>
     <params>
         <param field="Mode1" label="Breedtegraad (lat)"  width="80px"  required="true" default="52.37"/>
@@ -31,7 +31,7 @@ from typing import Optional
 # Constanten
 # ---------------------------------------------------------------------------
 BUIENRADAR_URL = "https://gpsgadget.buienradar.nl/data/raintext?lat={lat}&lon={lon}"
-UNIT_RAIN = 1   # Rain-device (RegenData)
+UNIT_RAIN = 1   # Regen-device (Neerslag)
 UNIT_TEXT = 2   # Tekst-device (Buienradar)
 
 # ---------------------------------------------------------------------------
