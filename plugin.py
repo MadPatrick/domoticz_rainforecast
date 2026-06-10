@@ -1,15 +1,15 @@
 """
-<plugin key="RainForecast" name="Rain Forecast" author="MadPatrick" version="1.0.0" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
+<plugin key="RainForecast" name="Rain Forecast" author="MadPatrick" version="1.0.1" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
     <description>
         <h2>Buienradar</h2>
-        <p>Version 1.0.0</p>
+        <p>Version 1.0.1</p>
         Haalt de komende neerslagverwachting op via Buienradar en werkt
-        twee devices bij: een Regen-sensor en een Tekst-device.
+        twee devices bij: een Rain-sensor en een tekst-device.
     </description>
     <params>
         <param field="Mode1" label="Breedtegraad (lat)"  width="80px"  required="true" default="52.37"/>
         <param field="Mode2" label="Lengtegraad (lon)"   width="80px"  required="true" default="4.90"/>
-        <param field="Mode3" label="Poll-interval (min)" width="80px"  required="true" default="10"/>
+        <param field="Mode3" label="Poll-interval (min)" width="80px"  required="true" default="5"/>
         <param field="Mode6" label="Debug" width="75px">
             <options>
                 <option label="Yes" value="Debug"/>
@@ -31,7 +31,7 @@ from typing import Optional
 # Constanten
 # ---------------------------------------------------------------------------
 BUIENRADAR_URL = "https://gpsgadget.buienradar.nl/data/raintext?lat={lat}&lon={lon}"
-UNIT_RAIN = 1   # Regen-device (Neerslag)
+UNIT_RAIN = 1   # Rain-device (RegenData)
 UNIT_TEXT = 2   # Tekst-device (Buienradar)
 
 # ---------------------------------------------------------------------------
@@ -152,9 +152,9 @@ class BasePlugin:
 
         # Devices aanmaken indien nog niet aanwezig
         if UNIT_RAIN not in Devices:
-            Domoticz.Device(Name="Neerslag", Unit=UNIT_RAIN,
+            Domoticz.Device(Name="RegenData", Unit=UNIT_RAIN,
                             TypeName="Rain", Used=1).Create()
-            Domoticz.Log("Device 'Neerslag' aangemaakt")
+            Domoticz.Log("Device 'RegenData' aangemaakt")
 
         if UNIT_TEXT not in Devices:
             Domoticz.Device(Name="Buienradar", Unit=UNIT_TEXT,
@@ -222,8 +222,8 @@ class BasePlugin:
         except ValueError:
             current_rate, current_total = 0.0, 0.0
 
-        new_rate  = p["mm_now"] * 12
-        new_total = current_total + p["rain_now_avg"] / 12
+        new_rate  = p["mm_now"] #* 12
+        new_total = current_total + p["rain_now_avg"] / (60 / self._interval)
 
         new_svalue     = f"{new_rate:.2f};{new_total:.2f}"
         current_svalue = f"{current_rate:.2f};{current_total:.2f}"
