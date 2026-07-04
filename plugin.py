@@ -227,8 +227,8 @@ class BasePlugin:
             return False
 
         domoticz_lat, domoticz_lon = self._read_domoticz_location()
-        self._lat = manual_lat or domoticz_lat or self._lat
-        self._lon = manual_lon or domoticz_lon or self._lon
+        self._lat = manual_lat or domoticz_lat
+        self._lon = manual_lon or domoticz_lon
 
         if not manual_lat and not manual_lon and not (domoticz_lat and domoticz_lon):
             Domoticz.Error(
