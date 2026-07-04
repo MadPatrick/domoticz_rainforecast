@@ -49,7 +49,7 @@ def fmt(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}"
 
 def normalize_coordinate(value: Optional[str]) -> Optional[str]:
-    """Normaliseer een coördinaat naar decimale notatie met 2 decimalen."""
+    """Normaliseer een coördinaat naar een string met 2 decimalen voor URL/logging."""
     value = (value or "").strip().replace(",", ".")
     if not value:
         return None
@@ -245,7 +245,7 @@ class BasePlugin:
         """Lees en normaliseer lat/lon uit de Domoticz-systeemlocatie."""
         try:
             location = Settings["Location"].strip()
-        except Exception:
+        except (KeyError, TypeError, AttributeError):
             return None, None
 
         parts = [x.strip() for x in location.split(";", 1)]
