@@ -12,8 +12,8 @@
         <param field="Mode3" label="Poll-interval (min)" width="80px"  required="true" default="5"/>
         <param field="Mode4" label="Language" width="75px">
             <options>
-                <option label="Nederlands" value="NL" default="true"/>
-                <option label="English" value="EN"/>
+                <option label="NL" value="NL" default="true"/>
+                <option label="EN" value="EN"/>
             </options>
         </param>
         <param field="Mode6" label="Debug" width="75px">
