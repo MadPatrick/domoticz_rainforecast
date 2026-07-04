@@ -25,7 +25,7 @@ import re
 import urllib.request
 import urllib.error
 import threading
-from typing import Optional
+from typing import Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Constanten
@@ -48,7 +48,7 @@ def raw_to_mm(raw: float) -> float:
 def fmt(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}"
 
-def normalize_coordinate(value: str) -> Optional[str]:
+def normalize_coordinate(value: Optional[str]) -> Optional[str]:
     """Normaliseer een coördinaat naar decimale notatie met 2 decimalen."""
     value = (value or "").strip().replace(",", ".")
     if not value:
@@ -241,7 +241,7 @@ class BasePlugin:
         Domoticz.Log(f"Locatie actief: lat={self._lat}, lon={self._lon}")
         return True
 
-    def _read_domoticz_location(self):
+    def _read_domoticz_location(self) -> Tuple[Optional[str], Optional[str]]:
         """Lees en normaliseer lat/lon uit de Domoticz-systeemlocatie."""
         try:
             location = Settings["Location"].strip()
