@@ -49,6 +49,7 @@ def fmt(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}"
 
 def normalize_coordinate(value: str) -> Optional[str]:
+    """Normaliseer een coördinaat naar decimale notatie met 2 decimalen."""
     value = (value or "").strip().replace(",", ".")
     if not value:
         return None
@@ -214,6 +215,7 @@ class BasePlugin:
             self._fetch_async()
 
     def _resolve_location(self) -> bool:
+        """Bepaal lat/lon waarbij handmatige overrides voorrang hebben op Domoticz."""
         manual_lat_raw = Parameters.get("Mode1", "")
         manual_lon_raw = Parameters.get("Mode2", "")
         manual_lat = normalize_coordinate(manual_lat_raw)
@@ -246,6 +248,7 @@ class BasePlugin:
         return True
 
     def _read_domoticz_location(self):
+        """Lees en normaliseer lat/lon uit de Domoticz-systeemlocatie."""
         try:
             location = Settings["Location"].strip()
         except Exception:
