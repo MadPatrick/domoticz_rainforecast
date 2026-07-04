@@ -239,7 +239,6 @@ class BasePlugin:
             )
             return False
 
-        Domoticz.Log(f"Locatie actief: lat={self._lat}, lon={self._lon}")
         return True
 
     def _read_domoticz_location(self) -> Tuple[Optional[str], Optional[str]]:
@@ -254,8 +253,6 @@ class BasePlugin:
 
         lat = normalize_coordinate(parts[0])
         lon = normalize_coordinate(parts[1])
-        if lat and lon:
-            Domoticz.Log(f"Locatie uit Domoticz: lat={lat}, lon={lon}")
         return lat, lon
 
     # ------------------------------------------------------------------
