@@ -49,7 +49,7 @@ def fmt(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}"
 
 def normalize_coordinate(value: Optional[str]) -> Optional[str]:
-    """Normaliseer een coördinaat naar een string met 2 decimalen voor URL/logging."""
+    """Strip spaties, vervang komma's en rond een coördinaat af naar 2 decimalen."""
     value = (value or "").strip().replace(",", ".")
     if not value:
         return None
@@ -58,6 +58,13 @@ def normalize_coordinate(value: Optional[str]) -> Optional[str]:
         return f"{float(value):.2f}"
     except ValueError:
         return None
+
+def parse_manual_coordinate(value: Optional[str], label: str) -> Tuple[Optional[str], Optional[str]]:
+    """Valideer een handmatige coördinaat en geef een foutmelding terug indien ongeldig."""
+    normalized = normalize_coordinate(value)
+    if (value or "").strip() and normalized is None:
+        return None, f"Ongeldige {label} in hardware instellingen."
+    return normalized, None
 
 def build_status(prefix: str, mm_now: float, mm_max: Optional[float]):
     if mm_max is not None and mm_max > mm_now:
@@ -218,14 +225,14 @@ class BasePlugin:
         """Bepaal lat/lon waarbij handmatige overrides voorrang hebben op Domoticz."""
         manual_lat_raw = Parameters.get("Mode1", "")
         manual_lon_raw = Parameters.get("Mode2", "")
-        manual_lat = normalize_coordinate(manual_lat_raw)
-        manual_lon = normalize_coordinate(manual_lon_raw)
+        manual_lat, lat_error = parse_manual_coordinate(manual_lat_raw, "Breedtegraad (lat)")
+        manual_lon, lon_error = parse_manual_coordinate(manual_lon_raw, "Lengtegraad (lon)")
 
-        if manual_lat_raw.strip() and manual_lat is None:
-            Domoticz.Error("Ongeldige Breedtegraad (lat) in hardware instellingen.")
+        if lat_error:
+            Domoticz.Error(lat_error)
             return False
-        if manual_lon_raw.strip() and manual_lon is None:
-            Domoticz.Error("Ongeldige Lengtegraad (lon) in hardware instellingen.")
+        if lon_error:
+            Domoticz.Error(lon_error)
             return False
 
         domoticz_lat, domoticz_lon = self._read_domoticz_location()
