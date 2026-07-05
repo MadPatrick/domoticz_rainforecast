@@ -273,18 +273,37 @@ def build_wind_text(weather_info: dict) -> str:
 
     return f"{direction}{force_value}"
 
+def map_weather_icon_class(weatherdescription: str) -> str:
+    """Kiest een Font Awesome icoonklasse op basis van de Buienradar-omschrijving."""
+    desc = weatherdescription.lower()
+
+    if "onweer" in desc or "bliksem" in desc:
+        return "fa-bolt"
+    if "hagel" in desc:
+        return "fa-snowflake-o"
+    if "sneeuw" in desc:
+        return "fa-snowflake-o"
+    if "regen" in desc or "bui" in desc or "motregen" in desc:
+        return "fa-tint"
+    if "mist" in desc or "nevel" in desc:
+        return "fa-cloud"
+    if "onbewolkt" in desc or "zonnig" in desc or "helder" in desc:
+        return "fa-sun-o"
+    if "bewolkt" in desc:
+        return "fa-cloud"
+
+    return "fa-cloud"
+
 def build_weather_icon_html(weather_info: Optional[dict]) -> str:
     if not weather_info:
         return ""
 
-    iconurl = weather_info.get("iconurl")
-    if not iconurl:
-        return ""
+    weatherdescription = str(weather_info.get("weatherdescription") or "").strip()
+    icon_class = map_weather_icon_class(weatherdescription) if weatherdescription else "fa-cloud"
+    alt = html.escape(weatherdescription or "weather", quote=True)
 
-    icon = html.escape(str(iconurl), quote=True)
-    alt = html.escape(str(weather_info.get("weatherdescription") or "weather"), quote=True)
-    return (f'<img src="{icon}" width="24" height="24" alt="{alt}" '
-            f'style="vertical-align: middle;">')
+    return (f'<i class="fa {icon_class}" title="{alt}" '
+            f'style="vertical-align: middle;"></i>')
 
 def build_weather_suffix(weather_info: Optional[dict]) -> Tuple[str, str]:
     if not weather_info:
