@@ -1,10 +1,12 @@
 """
-<plugin key="RainForecast" name="Rain Forecast" author="MadPatrick" version="1.0.6" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
+<plugin key="RainForecast" name="Rain Forecast" author="MadPatrick" version="1.1.0" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
     <description>
         <h2>Buienradar</h2>
-        <p>Version 1.0.6</p>
+        <p>Version 1.1.0</p>
         Retrieves the upcoming rainfall forecast from Buienradar and updates
         three devices: a Rain sensor, a Text device, and a Temperature device.
+        Weather icons are mapped directly from Buienradar's iconurl codes
+        (Font Awesome 5), with the text description used only as a fallback.
     </description>
     <params>
         <param field="Mode1" label="Latitude (lat)"  width="80px" default="">
@@ -71,6 +73,30 @@ LANGUAGE_TEXTS = {
         "range_word": "tot",
     },
 }
+# Font Awesome 5-icoon en kleur per Buienradar-icooncode (a..z).
+# De code wordt afgeleid uit de bestandsnaam van de 'iconurl' die Buienradar
+# meestuurt, bv. ".../weather/30x30/cc.png" -> code "cc". Een verdubbelde
+# letter (bv. "cc") is steeds de nachtvariant van de dagcode ("c").
+# Bron van de betekenis per code: https://www.buienradar.nl/overbuienradar/legenda
+WEATHER_ICON_MAP = {
+    "a": {"day": ("fa-sun",                 "#FFC107"), "night": ("fa-moon",               "#4A6FA5")},  # onbewolkt/zonnig/helder
+    "j": {"day": ("fa-cloud-sun",           "#FFC107"), "night": ("fa-cloud-moon",         "#4A6FA5")},  # opklaringen + hoge bewolking
+    "b": {"day": ("fa-cloud-sun",           "#FFC107"), "night": ("fa-cloud-moon",         "#4A6FA5")},  # opklaringen + middelbare/lage bewolking
+    "c": {"day": ("fa-cloud",               "#D3D3D3"), "night": ("fa-cloud",              "#D3D3D3")},  # zwaar bewolkt
+    "d": {"day": ("fa-smog",                "#B0B0B0"), "night": ("fa-smog",               "#B0B0B0")},  # bewolkt + lokaal mist
+    "f": {"day": ("fa-cloud-sun-rain",      "#5DADE2"), "night": ("fa-cloud-moon-rain",    "#5DADE2")},  # afwisselend bewolkt + lichte regen
+    "g": {"day": ("fa-bolt",                "#FFC107"), "night": ("fa-bolt",               "#FFC107")},  # opklaringen + kans op onweersbuien
+    "s": {"day": ("fa-bolt",                "#FFC107"), "night": ("fa-bolt",               "#FFC107")},  # bewolkt + kans op onweersbuien
+    "t": {"day": ("fa-icicles",             "#E0F7FA"), "night": ("fa-icicles",            "#E0F7FA")},  # zware sneeuwval
+    "m": {"day": ("fa-cloud-rain",          "#4FC3F7"), "night": ("fa-cloud-rain",         "#4FC3F7")},  # zwaar bewolkt + lichte regen
+    "n": {"day": ("fa-smog",                "#B0B0B0"), "night": ("fa-smog",               "#B0B0B0")},  # opklaring + lokale nevel/mist
+    "q": {"day": ("fa-cloud-showers-heavy", "#3B82C4"), "night": ("fa-cloud-showers-heavy","#3B82C4")},  # zwaar bewolkt en regen
+    "u": {"day": ("fa-snowflake",           "#E0F7FA"), "night": ("fa-snowflake",          "#E0F7FA")},  # afwisselend bewolkt + lichte sneeuw
+    "v": {"day": ("fa-snowflake",           "#E0F7FA"), "night": ("fa-snowflake",          "#E0F7FA")},  # zwaar bewolkt + lichte sneeuw
+    "w": {"day": ("fa-cloud-showers-heavy", "#7FB3D5"), "night": ("fa-cloud-showers-heavy","#7FB3D5")},  # zwaar bewolkt + regen/winterse neerslag
+}
+DEFAULT_ICON = ("fa-cloud", "#D3D3D3")
+
 TEXT_DEVICE_MODES = {
     "temp": {
         "description": False,
@@ -305,37 +331,63 @@ def build_wind_text(weather_info: dict) -> str:
 
     return f"{direction}{force_value}"
 
-def map_weather_icon_class(weatherdescription: str) -> str:
-    """Kiest een Font Awesome icoonklasse op basis van de Buienradar-omschrijving."""
+def extract_icon_code(iconurl: str) -> str:
+    """Haalt de icooncode (bv. 'a', 'cc', 'f') uit de bestandsnaam van een Buienradar iconurl."""
+    if not iconurl:
+        return ""
+    filename = iconurl.rsplit("/", 1)[-1]
+    return filename.split(".", 1)[0].strip().lower()
+
+def map_icon_from_code(code: str) -> Optional[Tuple[str, str]]:
+    """Zoekt icoon+kleur op aan de hand van de Buienradar icooncode (zie WEATHER_ICON_MAP)."""
+    if not code:
+        return None
+    letter = code[0]
+    is_night = len(code) == 2 and code[1] == letter
+    entry = WEATHER_ICON_MAP.get(letter)
+    if not entry:
+        return None
+    return entry["night"] if is_night else entry["day"]
+
+def map_weather_icon_class(weatherdescription: str) -> Tuple[str, str]:
+    """Kiest een Font Awesome 5-icoon en kleur op basis van de Buienradar-omschrijving.
+    Dit is de fallback voor als er geen (herkenbare) iconurl beschikbaar is."""
     desc = weatherdescription.lower()
 
     if "onweer" in desc or "bliksem" in desc:
-        return "fa-bolt"
+        return "fa-bolt", "#FFC107"
     if "hagel" in desc:
-        return "fa-snowflake-o"
+        return "fa-icicles", "#E0F7FA"
     if "sneeuw" in desc:
-        return "fa-snowflake-o"
-    if "regen" in desc or "bui" in desc or "motregen" in desc:
-        return "fa-tint"
+        return "fa-snowflake", "#E0F7FA"
     if "mist" in desc or "nevel" in desc:
-        return "fa-cloud"
+        return "fa-smog", "#B0B0B0"
+    if "bui" in desc:
+        return "fa-cloud-showers-heavy", "#5DADE2"
+    if "motregen" in desc or "regen" in desc:
+        return "fa-cloud-rain", "#4FC3F7"
     if "onbewolkt" in desc or "zonnig" in desc or "helder" in desc:
-        return "fa-sun-o"
+        return "fa-sun", "#FFC107"
     if "bewolkt" in desc:
-        return "fa-cloud"
+        return "fa-cloud", "#D3D3D3"
 
-    return "fa-cloud"
+    return DEFAULT_ICON
 
 def build_weather_icon_html(weather_info: Optional[dict]) -> str:
     if not weather_info:
         return ""
 
     weatherdescription = str(weather_info.get("weatherdescription") or "").strip()
-    icon_class = map_weather_icon_class(weatherdescription) if weatherdescription else "fa-cloud"
+    iconurl = str(weather_info.get("iconurl") or "").strip()
+
+    icon_class, color = (
+        map_icon_from_code(extract_icon_code(iconurl))
+        or (map_weather_icon_class(weatherdescription) if weatherdescription else DEFAULT_ICON)
+    )
     alt = html.escape(weatherdescription or "weather", quote=True)
 
     return (f'<i class="fa {icon_class}" title="{alt}" '
-            f'style="vertical-align: middle;"></i>')
+            f'style="vertical-align: middle; color: {color};"></i>')
 
 def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[str, str]:
     if not weather_info:
@@ -368,7 +420,7 @@ def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[
         middle_text_parts.append(weatherdescription)
 
     if mode["icon"] and icon_html:
-        middle_html_parts.append(icon_html)
+        middle_html_parts.append("&nbsp;"+icon_html+"&nbsp;")
         # Geen tekst-equivalent voor het logo in de logregel.
 
     if mode["wind"] and wind_text:
