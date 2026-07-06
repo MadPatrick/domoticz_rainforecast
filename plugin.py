@@ -24,8 +24,8 @@
             <options>
                 <option label="Status - temperature" value="temp"/>
                 <option label="Status - temperature - logo" value="temp_logo"/>
-                <option label="Status - temperature - logo - wind" value="temp_logo_wind"/>
-                <option label="Status - temperature - description - logo - wind" value="temp_desc_logo_wind" default="true"/>
+                <option label="Status - temperature - wind - logo" value="temp_logo_wind"/>
+                <option label="Status - temperature - description - wind - logo" value="temp_desc_logo_wind" default="true"/>
             </options>
         </param>
         <param field="Mode6" label="Debug" width="75px">
@@ -383,7 +383,7 @@ def build_weather_icon_html(weather_info: Optional[dict]) -> str:
     alt = html.escape(weatherdescription or "weather", quote=True)
 
     return (f'<span title="{alt}" style="vertical-align: middle; color: {color}; '
-            f'font-size: 1.5em; line-height: 1;">'
+            f'font-size: 2em; line-height: 1;">'
             f'{icon_entity}</span>')
 
 def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[str, str]:
@@ -404,30 +404,25 @@ def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[
             html_sections.append(f"{fmt_display(temp_value)}\u00b0C")
             text_sections.append(f"{fmt_display(temp_value)} C")
 
-    # Middengedeelte: weeromschrijving, dan het logo, dan de windrichting/-kracht.
+    # Extra delen blijven met streepjes gescheiden; het logo komt zonder eigen streepje achteraan.
     weatherdescription = str(weather_info.get("weatherdescription") or "").strip()
     icon_html = build_weather_icon_html(weather_info)
     wind_text = build_wind_text(weather_info)
 
-    middle_html_parts = []
-    middle_text_parts = []
-
     if mode["description"] and weatherdescription:
-        middle_html_parts.append(html.escape(weatherdescription))
-        middle_text_parts.append(weatherdescription)
-
-    if mode["icon"] and icon_html:
-        middle_html_parts.append("&nbsp;"+icon_html+"&nbsp;")
-        # Geen tekst-equivalent voor het logo in de logregel.
+        html_sections.append(html.escape(weatherdescription))
+        text_sections.append(weatherdescription)
 
     if mode["wind"] and wind_text:
-        middle_html_parts.append(html.escape(wind_text))
-        middle_text_parts.append(wind_text)
+        html_sections.append(html.escape(wind_text))
+        text_sections.append(wind_text)
 
-    if middle_html_parts:
-        html_sections.append(" ".join(middle_html_parts))
-    if middle_text_parts:
-        text_sections.append(" ".join(middle_text_parts))
+    if mode["icon"] and icon_html:
+        # Geen tekst-equivalent voor het logo in de logregel.
+        if html_sections:
+            html_sections[-1] = f"{html_sections[-1]}&nbsp;{icon_html}"
+        else:
+            html_sections.append(icon_html)
 
     return " - ".join(html_sections), " - ".join(text_sections)
 

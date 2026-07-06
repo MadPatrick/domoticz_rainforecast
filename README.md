@@ -46,14 +46,14 @@ The labels below are exactly as defined in the script:
 | `Longitude (lon)` | Optional longitude override. Empty = Domoticz system location. | empty |
 | `Poll-interval (min)` | Poll frequency in minutes. | `5` |
 | `Language` | Status text language (`NL` or `EN`). | `NL` |
-| `Text device` | Which parts are included in the text output. | `Status - temperature - description - logo - wind` |
+| `Text device` | Which parts are included in the text output. | `Status - temperature - description - wind - logo` |
 | `Debug` | Extra Domoticz debug logging (`Yes`/`No`). | `No` |
 
 `Text device` options (exact script labels):
 - `Status - temperature`
 - `Status - temperature - logo`
-- `Status - temperature - logo - wind`
-- `Status - temperature - description - logo - wind`
+- `Status - temperature - wind - logo`
+- `Status - temperature - description - wind - logo`
 
 ## Created devices
 
