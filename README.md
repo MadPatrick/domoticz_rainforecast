@@ -18,7 +18,7 @@ Example status (EN):
 - `Raining now 0.8 mm/h`
 - `Rain expected 1.2 mm/h`
 - `Rain expected at 14:35: 2.4 mm/h`
-- `Dry for now <icon> - 19.7°C - Cloudy NW4`
+- `Dry for now <icon> ~ 19.7°C ~ Cloudy NW4`
 
 ## Installation
 

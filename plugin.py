@@ -48,14 +48,11 @@ import urllib.error
 import threading
 from typing import Optional, Tuple
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 BUIENRADAR_URL = "https://gpsgadget.buienradar.nl/data/raintext?lat={lat}&lon={lon}"
 BUIENRADAR_JSON_URL = "https://data.buienradar.nl/2.0/feed/json"
-UNIT_RAIN = 1   # Rain device
-UNIT_TEXT = 2   # Text device
-UNIT_TEMP = 3   # Temperature device
+UNIT_RAIN = 1
+UNIT_TEXT = 2
+UNIT_TEMP = 3
 RAIN_STEP_MINUTES = 5
 LANGUAGE_TEXTS = {
     "EN": {
@@ -115,10 +112,6 @@ TEXT_DEVICE_MODES = {
         "wind": True,
     },
 }
-
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
 
 def raw_to_mm(raw: float) -> float:
     if raw == 0:
@@ -259,7 +252,6 @@ def find_today_forecast(json_data: dict) -> Optional[dict]:
     return forecasts[0]
 
 def find_nearest_station_weather(json_data: dict, lat: float, lon: float) -> Optional[dict]:
-    """Zoekt het dichtstbijzijnde Buienradar-weerstation en vult aan met de dagverwachting."""
     stations = json_data.get("actual", {}).get("stationmeasurements", [])
     weather_info = {}
 
@@ -328,14 +320,12 @@ def build_wind_text(weather_info: dict) -> str:
     return f"{direction}{force_value}"
 
 def extract_icon_code(iconurl: str) -> str:
-    """Haalt de icooncode (bv. 'a', 'cc', 'f') uit de bestandsnaam van een Buienradar iconurl."""
     if not iconurl:
         return ""
     filename = iconurl.rsplit("/", 1)[-1]
     return filename.split(".", 1)[0].strip().lower()
 
 def map_icon_from_code(code: str) -> Optional[Tuple[str, str]]:
-    """Zoekt icoon+kleur op aan de hand van de Buienradar icooncode (zie WEATHER_ICON_MAP)."""
     if not code:
         return None
     letter = code[0]
@@ -346,8 +336,6 @@ def map_icon_from_code(code: str) -> Optional[Tuple[str, str]]:
     return entry["night"] if is_night else entry["day"]
 
 def map_weather_icon_entity(weatherdescription: str) -> Tuple[str, str]:
-    """Kiest een Unicode hex entity en kleur op basis van de Buienradar-omschrijving.
-    Dit is de fallback voor als er geen (herkenbare) iconurl beschikbaar is."""
     desc = weatherdescription.lower()
 
     if "onweer" in desc or "bliksem" in desc:
@@ -404,7 +392,6 @@ def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[
             html_sections.append(f"{fmt_display(temp_value)}\u00b0C")
             text_sections.append(f"{fmt_display(temp_value)} C")
 
-    # Extra delen blijven met streepjes gescheiden; het logo komt zonder eigen streepje achteraan.
     weatherdescription = str(weather_info.get("weatherdescription") or "").strip()
     icon_html = build_weather_icon_html(weather_info)
     wind_text = build_wind_text(weather_info)
@@ -418,18 +405,17 @@ def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[
         text_sections.append(wind_text)
 
     if mode["icon"] and icon_html:
-        # Geen tekst-equivalent voor het logo in de logregel.
         if html_sections:
             html_sections[-1] = f"{html_sections[-1]}&nbsp;{icon_html}"
         else:
             html_sections.append(icon_html)
 
-    return " - ".join(html_sections), " - ".join(text_sections)
+    return " ~ ".join(html_sections), " - ".join(text_sections)
 
 def append_weather_to_status(status_html: str, status_log: str, weather_info: Optional[dict], text_mode: str) -> Tuple[str, str]:
     suffix_html, suffix_log = build_weather_suffix(weather_info, text_mode)
     if suffix_html:
-        status_html = f"{status_html}&nbsp;&nbsp; - {suffix_html}"
+        status_html = f"{status_html}&nbsp;&nbsp; ~ {suffix_html}"
     if suffix_log:
         status_log = f"{status_log} - {suffix_log}"
     return status_html, status_log
@@ -453,18 +439,14 @@ def build_status_text(p: dict, language: str):
 
     return texts["dry_for_now"], texts["dry_for_now"]
 
-# ---------------------------------------------------------------------------
-# Plugin-klasse
-# ---------------------------------------------------------------------------
-
 class BasePlugin:
 
     def __init__(self):
         self._lat       = "52.37"
         self._lon       = "4.90"
-        self._interval  = 10        # minutes
-        self._heartbeat = 30        # seconds (Domoticz heartbeat)
-        self._ticks     = 0         # heartbeat counter
+        self._interval  = 10
+        self._heartbeat = 30
+        self._ticks     = 0
         self._lat_source = "Domoticz"
         self._lon_source = "Domoticz"
         self._language  = "NL"
@@ -481,10 +463,6 @@ class BasePlugin:
         if self._lat_source == self._lon_source:
             return self._lat_source
         return f"lat={self._lat_source}, lon={self._lon_source}"
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
 
     def onStart(self):
         self._debug = (Parameters["Mode6"] == "Debug")
@@ -507,7 +485,6 @@ class BasePlugin:
 
         Domoticz.Heartbeat(self._heartbeat)
 
-        # Create devices if they do not exist yet
         if UNIT_RAIN not in Devices:
             Domoticz.Device(Name="Rainfall", Unit=UNIT_RAIN,
                             TypeName="Rain", Used=1).Create()
@@ -526,7 +503,6 @@ class BasePlugin:
         Domoticz.Log(f"Plugin started - version {self._plugin_version()}")
         Domoticz.Log(f"lat={self._lat}, lon={self._lon} ({self._location_source_summary()})")
 
-        # Run first poll immediately
         self._fetch_async()
 
     def onStop(self):
@@ -579,10 +555,6 @@ class BasePlugin:
         lat = normalize_coordinate(parts[0])
         lon = normalize_coordinate(parts[1])
         return lat, lon
-
-    # ------------------------------------------------------------------
-    # Fetching & processing
-    # ------------------------------------------------------------------
 
     def _fetch_async(self):
         t = threading.Thread(target=self._fetch_and_update, daemon=True)
@@ -664,7 +636,6 @@ class BasePlugin:
             self._text_mode
         )
 
-        # --- update rain device ---
         rain_dev = Devices[UNIT_RAIN]
         try:
             parts         = rain_dev.sValue.split(";") if rain_dev.sValue else []
@@ -673,7 +644,6 @@ class BasePlugin:
         except ValueError:
             current_rate, current_total = 0.0, 0.0
 
-        # Domoticz Rain stores the rate as hundredths of mm/hour.
         rain_increment = rain_amount_for_interval(p["rain_values"], self._interval)
         new_rate       = round(p["mm_now"] * 100)
         new_total      = current_total + rain_increment
@@ -689,10 +659,8 @@ class BasePlugin:
         if new_svalue != current_svalue:
             rain_dev.Update(nValue=0, sValue=new_svalue)
 
-        # --- update text device ---
         text_dev = Devices[UNIT_TEXT]
         if text_dev.sValue != status_html:
-        #    Domoticz.Log(status_log)
             text_dev.Update(nValue=0, sValue=status_html)
 
         if weather_info and weather_info.get("temperature") is not None:
@@ -705,10 +673,6 @@ class BasePlugin:
             temp_dev.Update(nValue=0, sValue=new_svalue)
             if self._debug:
                 Domoticz.Debug(f"Temperature updated: {new_svalue} C")
-
-# ---------------------------------------------------------------------------
-# Domoticz plugin API hooks (module-level functions required)
-# ---------------------------------------------------------------------------
 
 _plugin = BasePlugin()
 
