@@ -1,22 +1,21 @@
 """
-<plugin key="WeatherInfo" name="Weather Info" author="MadPatrick" version="1.1.3" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
+<plugin key="WeatherInfo" name="Weather Info" author="MadPatrick" version="1.2.0" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
     <description>
         <h2>Weather Info (Buienradar + Open-Meteo)</h2>
-        <p>Version 1.1.3</p>
+        <p>Version 1.2.0</p>
         Retrieves the upcoming rainfall forecast from Buienradar and current weather
         conditions from Open-Meteo, and updates three Domoticz devices:
         <ul>
-            <li><b>Rain sensor</b> â€“ current rain rate and accumulated total.</li>
-            <li><b>Text device</b> â€“ configurable status line with rain status,
+            <li><b>Rain sensor</b> - current rain rate and accumulated total.</li>
+            <li><b>Text device</b> - configurable status line with rain status,
                 temperature, weather description, wind (Beaufort + direction),
                 and a weather icon (emoji).</li>
-            <li><b>Temperature device</b> â€“ current temperature from Open-Meteo.</li>
+            <li><b>Temperature device</b> - current temperature from Open-Meteo.</li>
         </ul>
-        Weather icons are resolved in order: WMO weather code (Open-Meteo) â†’
-        Buienradar icon code â†’ weather description text as a last fallback.
+        Weather icons are resolved in order: WMO weather code (Open-Meteo) ->
+        Buienradar icon code -> weather description text as a last fallback.
         Coordinates default to the Domoticz location settings when left blank.
-    </description>
-    <params>
+    </description>    <params>
         <param field="Mode1" label="Latitude (lat)"  width="80px" default="">
             <description><br/>Leave LAT and LON blank for Domoticz settings<br/></description>
         </param>
@@ -53,6 +52,7 @@ import html
 import urllib.request
 import urllib.error
 import threading
+import queue
 from typing import Optional, Tuple
 
 BUIENRADAR_URL = "https://gpsgadget.buienradar.nl/data/raintext?lat={lat}&lon={lon}"
@@ -418,7 +418,6 @@ def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[
 def append_weather_to_status(status_html: str, status_log: str, weather_info: Optional[dict], text_mode: str) -> Tuple[str, str]:
     suffix_html, suffix_log = build_weather_suffix(weather_info, text_mode)
     if suffix_html:
-        # Verander de tilde hier naar de GREEN_DOT constante
         status_html = f"{status_html}&nbsp; {GREEN_DOT} {suffix_html}"
     if suffix_log:
         status_log = f"{status_log} - {suffix_log}"
@@ -459,6 +458,7 @@ class BasePlugin:
         self._lock      = threading.Lock()
         self._weather_info = None
         self.imageID = 0
+        self.message_queue = queue.Queue()
 
     def _plugin_version(self) -> str:
         match = re.search(r'version="([^"]+)"', __doc__ or "")
@@ -550,6 +550,27 @@ class BasePlugin:
         Domoticz.Log("Plugin stopped")
 
     def onHeartbeat(self):
+        while not self.message_queue.empty():
+            msg = self.message_queue.get()
+            
+            if msg["type"] == "error":
+                Domoticz.Error(msg["msg"])
+                
+            elif msg["type"] == "data":
+                weather_info = msg["weather_info"]
+                if weather_info is not None:
+                    self._weather_info = weather_info
+                    if self._debug:
+                        Domoticz.Debug(
+                            "Weather info: "
+                            f"temperature={weather_info.get('temperature', '')}, "
+                            f"weatherdescription={weather_info.get('weatherdescription', '')}, "
+                            f"winddirection={weather_info.get('winddirection', '')}, "
+                            f"windspeed_bft={weather_info.get('windspeed_bft', '')}"
+                        )
+                
+                self._process(msg["data"], self._weather_info)
+
         self._ticks += 1
         ticks_needed = (self._interval * 60) // self._heartbeat
         if self._ticks >= ticks_needed:
@@ -607,34 +628,27 @@ class BasePlugin:
             with urllib.request.urlopen(url, timeout=10) as resp:
                 data = resp.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as e:
-            Domoticz.Error(f"Buienradar HTTP error (status code: {e.code})")
+            self.message_queue.put({"type": "error", "msg": f"Buienradar HTTP error (status code: {e.code})"})
             return
         except Exception as e:
-            Domoticz.Error(f"Buienradar connection error: {e}")
+            self.message_queue.put({"type": "error", "msg": f"Buienradar connection error: {e}"})
             return
 
         if not data or not data.strip():
-            Domoticz.Error("Received empty response from Buienradar")
+            self.message_queue.put({"type": "error", "msg": "Received empty response from Buienradar"})
             return
 
         if not re.search(r"\d+\|\d+:\d+", data):
-            Domoticz.Error("Unexpected format in Buienradar response")
+            self.message_queue.put({"type": "error", "msg": "Unexpected format in Buienradar response"})
             return
 
         weather_info = self._fetch_weather_info()
 
-        with self._lock:
-            if weather_info is not None:
-                self._weather_info = weather_info
-                if self._debug:
-                    Domoticz.Debug(
-                        "Weather info: "
-                        f"temperature={weather_info.get('temperature', '')}, "
-                        f"weatherdescription={weather_info.get('weatherdescription', '')}, "
-                        f"winddirection={weather_info.get('winddirection', '')}, "
-                        f"windspeed_bft={weather_info.get('windspeed_bft', '')}"
-                    )
-            self._process(data, self._weather_info)
+        self.message_queue.put({
+            "type": "data", 
+            "data": data, 
+            "weather_info": weather_info
+        })
 
     def _fetch_weather_info(self) -> Optional[dict]:
         url = OPEN_METEO_URL.format(lat=self._lat, lon=self._lon)
@@ -642,21 +656,21 @@ class BasePlugin:
             with urllib.request.urlopen(url, timeout=10) as resp:
                 raw = resp.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as e:
-            Domoticz.Error(f"Open-Meteo HTTP error (status code: {e.code})")
+            self.message_queue.put({"type": "error", "msg": f"Open-Meteo HTTP error (status code: {e.code})"})
             return None
         except Exception as e:
-            Domoticz.Error(f"Open-Meteo connection error: {e}")
+            self.message_queue.put({"type": "error", "msg": f"Open-Meteo connection error: {e}"})
             return None
 
         try:
             json_data = json.loads(raw)
         except ValueError:
-            Domoticz.Error("Unexpected format in Open-Meteo response")
+            self.message_queue.put({"type": "error", "msg": "Unexpected format in Open-Meteo response"})
             return None
 
         current = json_data.get("current")
         if not current:
-            Domoticz.Error("Missing 'current' data in Open-Meteo response")
+            self.message_queue.put({"type": "error", "msg": "Missing 'current' data in Open-Meteo response"})
             return None
 
         weather_info = {}
