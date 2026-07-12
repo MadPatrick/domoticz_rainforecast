@@ -458,6 +458,7 @@ class BasePlugin:
         self._debug     = False
         self._lock      = threading.Lock()
         self._weather_info = None
+        self.imageID = 0
 
     def _plugin_version(self) -> str:
         match = re.search(r'version="([^"]+)"', __doc__ or "")
@@ -468,23 +469,37 @@ class BasePlugin:
             return self._lat_source
         return f"lat={self._lat_source}, lon={self._lon_source}"
 
-    def _load_device_icon(self) -> Optional[int]:
-        try:
-            if ICON_NAME not in Images:
-                Domoticz.Image(ICON_ZIP).Create()
-            return Images[ICON_NAME].ID
-        except Exception as e:
-            Domoticz.Error(f"Unable to load device icon from {ICON_ZIP}: {e}")
-            return None
+    def _load_device_icon(self):
+        creating_new_icon = ICON_NAME not in Images
 
-    def _apply_device_icon(self, icon_id: Optional[int]):
-        if icon_id is None:
+        try:
+            Domoticz.Image(ICON_ZIP).Create()
+        except Exception as e:
+            Domoticz.Error(f"Unable to load icon pack '{ICON_ZIP}': {e}")
+            return
+
+        if ICON_NAME in Images:
+            self.imageID = Images[ICON_NAME].ID
+            if creating_new_icon:
+                Domoticz.Log("Icons created and loaded.")
+            else:
+                Domoticz.Log(f"Icons found in database (ImageID={self.imageID}).")
+        else:
+            Domoticz.Error(f"Unable to load icon pack '{ICON_ZIP}'")
+
+    def _apply_device_icon(self):
+        if not self.imageID:
             return
 
         for unit in (UNIT_RAIN, UNIT_TEXT, UNIT_TEMP):
-            if unit in Devices and Devices[unit].Image != icon_id:
+            if unit in Devices and Devices[unit].Image != self.imageID:
                 device = Devices[unit]
-                device.Update(nValue=device.nValue, sValue=device.sValue, Image=icon_id)
+                device.Update(
+                    nValue=device.nValue,
+                    sValue=device.sValue,
+                    Image=self.imageID,
+                )
+                Domoticz.Log(f"Icon applied to device '{device.Name}'.")
 
     def onStart(self):
         self._debug = (Parameters["Mode6"] == "Debug")
@@ -497,6 +512,8 @@ class BasePlugin:
         if self._debug:
             Domoticz.Debugging(1)
 
+        self._load_device_icon()
+
         if not self._resolve_location():
             return
 
@@ -507,25 +524,22 @@ class BasePlugin:
 
         Domoticz.Heartbeat(self._heartbeat)
 
-        icon_id = self._load_device_icon()
-        image_options = {"Image": icon_id} if icon_id is not None else {}
-
         if UNIT_RAIN not in Devices:
             Domoticz.Device(Name="Rainfall", Unit=UNIT_RAIN,
-                            TypeName="Rain", Used=1, **image_options).Create()
+                            TypeName="Rain", Image=self.imageID, Used=1).Create()
             Domoticz.Log("Device 'Rainfall' created")
 
         if UNIT_TEXT not in Devices:
             Domoticz.Device(Name="Rain forecast", Unit=UNIT_TEXT,
-                            Type=243, Subtype=19, Used=1, **image_options).Create()
+                            Type=243, Subtype=19, Image=self.imageID, Used=1).Create()
             Domoticz.Log("Device 'Rain forecast' created")
 
         if UNIT_TEMP not in Devices:
             Domoticz.Device(Name="Temperature", Unit=UNIT_TEMP,
-                            TypeName="Temperature", Used=1, **image_options).Create()
+                            TypeName="Temperature", Image=self.imageID, Used=1).Create()
             Domoticz.Log("Device 'Temperature' created")
 
-        self._apply_device_icon(icon_id)
+        self._apply_device_icon()
 
         Domoticz.Log(f"Plugin started - version {self._plugin_version()}")
         Domoticz.Log(f"lat={self._lat}, lon={self._lon} ({self._location_source_summary()})")
