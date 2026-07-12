@@ -124,6 +124,37 @@ WMO_DESCRIPTIONS = {
     99: "Onweer met zware hagel",
 }
 
+WMO_ICON_MAP = {
+    0:  ("&#x2600;",  "#FFC107"),  # onbewolkt
+    1:  ("&#x26C5;",  "#FFC107"),  # hoofdzakelijk helder
+    2:  ("&#x26C5;",  "#FFC107"),  # gedeeltelijk bewolkt
+    3:  ("&#x2601;",  "#D3D3D3"),  # bewolkt
+    45: ("&#x1F32B;", "#B0B0B0"),  # mist
+    48: ("&#x1F32B;", "#B0B0B0"),  # ijsmist
+    51: ("&#x1F327;", "#4FC3F7"),  # motregen licht
+    53: ("&#x1F327;", "#4FC3F7"),  # motregen matig
+    55: ("&#x1F327;", "#4FC3F7"),  # motregen zwaar
+    56: ("&#x1F327;", "#7FB3D5"),  # ijzel
+    57: ("&#x1F327;", "#7FB3D5"),  # ijzel
+    61: ("&#x1F327;", "#4FC3F7"),  # lichte regen
+    63: ("&#x1F327;", "#3B82C4"),  # regen
+    65: ("&#x1F327;", "#3B82C4"),  # zware regen
+    66: ("&#x1F327;", "#7FB3D5"),  # ijzel
+    67: ("&#x1F327;", "#7FB3D5"),  # ijzel
+    71: ("&#x2744;",  "#E0F7FA"),  # lichte sneeuw
+    73: ("&#x2744;",  "#E0F7FA"),  # sneeuw
+    75: ("&#x2744;",  "#E0F7FA"),  # zware sneeuw
+    77: ("&#x2744;",  "#E0F7FA"),  # sneeuwkorrels
+    80: ("&#x1F327;", "#5DADE2"),  # lichte bui
+    81: ("&#x1F327;", "#5DADE2"),  # bui
+    82: ("&#x1F327;", "#3B82C4"),  # zware bui
+    85: ("&#x2744;",  "#E0F7FA"),  # lichte sneeuwbui
+    86: ("&#x2744;",  "#E0F7FA"),  # zware sneeuwbui
+    95: ("&#x26A1;",  "#FFC107"),  # onweer
+    96: ("&#x26A1;",  "#FFC107"),  # onweer met hagel
+    99: ("&#x26A1;",  "#FFC107"),  # onweer met zware hagel
+}
+
 _BEAUFORT_THRESHOLDS = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118]
 
 def kmh_to_beaufort(kmh: float) -> int:
@@ -319,10 +350,12 @@ def build_weather_icon_html(weather_info: Optional[dict]) -> str:
         return ""
 
     weatherdescription = str(weather_info.get("weatherdescription") or "").strip()
+    wmo_code = weather_info.get("wmo_code")
     iconurl = str(weather_info.get("iconurl") or "").strip()
 
     icon_entity, color = (
-        map_icon_from_code(extract_icon_code(iconurl))
+        WMO_ICON_MAP.get(wmo_code)
+        or map_icon_from_code(extract_icon_code(iconurl))
         or (map_weather_icon_entity(weatherdescription) if weatherdescription else DEFAULT_ICON)
     )
     alt = html.escape(weatherdescription or "weather", quote=True)
@@ -594,6 +627,7 @@ class BasePlugin:
 
         try:
             wmo_code = int(current["weather_code"])
+            weather_info["wmo_code"] = wmo_code
             weather_info["weatherdescription"] = WMO_DESCRIPTIONS.get(wmo_code, "")
         except (KeyError, TypeError, ValueError):
             pass
