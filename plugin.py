@@ -51,7 +51,7 @@ BUIENRADAR_URL = "https://gpsgadget.buienradar.nl/data/raintext?lat={lat}&lon={l
 OPEN_METEO_URL = (
     "https://api.open-meteo.com/v1/forecast?"
     "latitude={lat}&longitude={lon}"
-    "&current=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day"
+    "&current=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code"
 )
 UNIT_RAIN = 1
 UNIT_TEXT = 2
@@ -135,7 +135,7 @@ def kmh_to_beaufort(kmh: float) -> int:
 _COMPASS_DIRS = ["N", "NO", "O", "ZO", "Z", "ZW", "W", "NW"]
 
 def degrees_to_compass(degrees: float) -> str:
-    index = round(degrees / 45) % 8
+    index = int((degrees + 22.5) / 45) % 8
     return _COMPASS_DIRS[index]
 
 TEXT_DEVICE_MODES = {
