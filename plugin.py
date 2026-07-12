@@ -1,8 +1,8 @@
 """
-<plugin key="WeatherInfo" name="Weather Info" author="MadPatrick" version="1.1.2" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
+<plugin key="WeatherInfo" name="Weather Info" author="MadPatrick" version="1.1.3" externallink="https://buienradar.nl" wikilink="https://github.com/MadPatrick/domoticz_rainforecast">
     <description>
         <h2>Weather Info (Buienradar + Open-Meteo)</h2>
-        <p>Version 1.1.2</p>
+        <p>Version 1.1.3</p>
         Retrieves the upcoming rainfall forecast from Buienradar and current weather
         conditions from Open-Meteo, and updates three Domoticz devices:
         <ul>
@@ -64,6 +64,8 @@ OPEN_METEO_URL = (
 UNIT_RAIN = 1
 UNIT_TEXT = 2
 UNIT_TEMP = 3
+ICON_ZIP = "weatherinfo_icons.zip"
+ICON_NAME = "weatherinfo"
 RAIN_STEP_MINUTES = 5
 LANGUAGE_TEXTS = {
     "EN": {
@@ -466,6 +468,24 @@ class BasePlugin:
             return self._lat_source
         return f"lat={self._lat_source}, lon={self._lon_source}"
 
+    def _load_device_icon(self) -> Optional[int]:
+        try:
+            if ICON_NAME not in Images:
+                Domoticz.Image(ICON_ZIP).Create()
+            return Images[ICON_NAME].ID
+        except Exception as e:
+            Domoticz.Error(f"Unable to load device icon from {ICON_ZIP}: {e}")
+            return None
+
+    def _apply_device_icon(self, icon_id: Optional[int]):
+        if icon_id is None:
+            return
+
+        for unit in (UNIT_RAIN, UNIT_TEXT, UNIT_TEMP):
+            if unit in Devices and Devices[unit].Image != icon_id:
+                device = Devices[unit]
+                device.Update(nValue=device.nValue, sValue=device.sValue, Image=icon_id)
+
     def onStart(self):
         self._debug = (Parameters["Mode6"] == "Debug")
         self._language = Parameters.get("Mode4", "NL")
@@ -487,20 +507,25 @@ class BasePlugin:
 
         Domoticz.Heartbeat(self._heartbeat)
 
+        icon_id = self._load_device_icon()
+        image_options = {"Image": icon_id} if icon_id is not None else {}
+
         if UNIT_RAIN not in Devices:
             Domoticz.Device(Name="Rainfall", Unit=UNIT_RAIN,
-                            TypeName="Rain", Used=1).Create()
+                            TypeName="Rain", Used=1, **image_options).Create()
             Domoticz.Log("Device 'Rainfall' created")
 
         if UNIT_TEXT not in Devices:
             Domoticz.Device(Name="Rain forecast", Unit=UNIT_TEXT,
-                            Type=243, Subtype=19, Used=1).Create()
+                            Type=243, Subtype=19, Used=1, **image_options).Create()
             Domoticz.Log("Device 'Rain forecast' created")
 
         if UNIT_TEMP not in Devices:
             Domoticz.Device(Name="Temperature", Unit=UNIT_TEMP,
-                            TypeName="Temperature", Used=1).Create()
+                            TypeName="Temperature", Used=1, **image_options).Create()
             Domoticz.Log("Device 'Temperature' created")
+
+        self._apply_device_icon(icon_id)
 
         Domoticz.Log(f"Plugin started - version {self._plugin_version()}")
         Domoticz.Log(f"lat={self._lat}, lon={self._lon} ({self._location_source_summary()})")
