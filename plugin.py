@@ -61,6 +61,7 @@ OPEN_METEO_URL = (
     "latitude={lat}&longitude={lon}"
     "&current=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code"
 )
+POLL_OPENMETEO = 15          # fetch Open-Meteo once every N minutes (independent of Mode3)
 UNIT_RAIN = 1
 UNIT_TEXT = 2
 UNIT_TEMP = 3
@@ -450,6 +451,8 @@ class BasePlugin:
         self._interval  = 10
         self._heartbeat = 30
         self._ticks     = 0
+        self._openmeteo_ticks = 0
+        self._openmeteo_ticks_needed = (POLL_OPENMETEO * 60) // self._heartbeat
         self._lat_source = "Domoticz"
         self._lon_source = "Domoticz"
         self._language  = "NL"
@@ -544,7 +547,7 @@ class BasePlugin:
         Domoticz.Log(f"Plugin started - version {self._plugin_version()}")
         Domoticz.Log(f"lat={self._lat}, lon={self._lon} ({self._location_source_summary()})")
 
-        self._fetch_async()
+        self._fetch_async(fetch_openmeteo=True)
 
     def onStop(self):
         Domoticz.Log("Plugin stopped")
@@ -572,10 +575,14 @@ class BasePlugin:
                 self._process(msg["data"], self._weather_info)
 
         self._ticks += 1
+        self._openmeteo_ticks += 1
         ticks_needed = (self._interval * 60) // self._heartbeat
         if self._ticks >= ticks_needed:
             self._ticks = 0
-            self._fetch_async()
+            fetch_openmeteo = self._openmeteo_ticks >= self._openmeteo_ticks_needed
+            if fetch_openmeteo:
+                self._openmeteo_ticks = 0
+            self._fetch_async(fetch_openmeteo)
 
     def _resolve_location(self) -> bool:
         manual_lat_raw = Parameters.get("Mode1", "")
@@ -618,11 +625,11 @@ class BasePlugin:
         lon = normalize_coordinate(parts[1])
         return lat, lon
 
-    def _fetch_async(self):
-        t = threading.Thread(target=self._fetch_and_update, daemon=True)
+    def _fetch_async(self, fetch_openmeteo: bool = True):
+        t = threading.Thread(target=self._fetch_and_update, args=(fetch_openmeteo,), daemon=True)
         t.start()
 
-    def _fetch_and_update(self):
+    def _fetch_and_update(self, fetch_openmeteo: bool = True):
         url = BUIENRADAR_URL.format(lat=self._lat, lon=self._lon)
         try:
             with urllib.request.urlopen(url, timeout=10) as resp:
@@ -642,7 +649,9 @@ class BasePlugin:
             self.message_queue.put({"type": "error", "msg": "Unexpected format in Buienradar response"})
             return
 
-        weather_info = self._fetch_weather_info()
+        # When fetch_openmeteo is False, send None so onHeartbeat reuses the
+        # last cached self._weather_info value instead of fetching a fresh one.
+        weather_info = self._fetch_weather_info() if fetch_openmeteo else None
 
         self.message_queue.put({
             "type": "data",
