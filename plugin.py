@@ -452,6 +452,7 @@ class BasePlugin:
         self._heartbeat = 30
         self._ticks     = 0
         self._openmeteo_ticks = 0
+        self._openmeteo_ticks_needed = (POLL_OPENMETEO * 60) // self._heartbeat
         self._lat_source = "Domoticz"
         self._lon_source = "Domoticz"
         self._language  = "NL"
@@ -578,8 +579,7 @@ class BasePlugin:
         ticks_needed = (self._interval * 60) // self._heartbeat
         if self._ticks >= ticks_needed:
             self._ticks = 0
-            openmeteo_ticks_needed = (POLL_OPENMETEO * 60) // self._heartbeat
-            fetch_openmeteo = self._openmeteo_ticks >= openmeteo_ticks_needed
+            fetch_openmeteo = self._openmeteo_ticks >= self._openmeteo_ticks_needed
             if fetch_openmeteo:
                 self._openmeteo_ticks = 0
             self._fetch_async(fetch_openmeteo)
@@ -649,6 +649,8 @@ class BasePlugin:
             self.message_queue.put({"type": "error", "msg": "Unexpected format in Buienradar response"})
             return
 
+        # When fetch_openmeteo is False, send None so onHeartbeat reuses the
+        # last cached self._weather_info value instead of fetching a fresh one.
         weather_info = self._fetch_weather_info() if fetch_openmeteo else None
 
         self.message_queue.put({
