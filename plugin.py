@@ -409,10 +409,7 @@ def build_weather_suffix(weather_info: Optional[dict], text_mode: str) -> Tuple[
         text_sections.append(wind_text)
 
     if mode["icon"] and icon_html:
-        if html_sections:
-            html_sections[-1] = f"{html_sections[-1]}&nbsp;{icon_html}"
-        else:
-            html_sections.append(icon_html)
+        html_sections.append(icon_html)
 
     return f" {GREEN_DOT} ".join(html_sections), " - ".join(text_sections)
 
